@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+
+<userOverrides>
+  <override>
+    <path>C:\Users\ser\Cloud@Mail.Ru\STM32\LCD\Src\systick.c</path>
+    <encoding>UTF-8</encoding>
+  </override>
+</userOverrides>
+
+

@@ -1,0 +1,345 @@
+#include "stm32f10x.h"
+#include "stm32f10x_gpio.h"
+#include "stm32f10x_rcc.h"
+//#include "stm32f10x_usart.h"
+#include "stm32f10x_i2c.h"
+#include "stm32f10x_tim.h"
+#include "Delay.h"
+#include "main.h" 
+#include "I2C.h"
+#include "LiquidCrystal_I2C.h"
+#include <stdio.h>
+#include <stdlib.h>
+#define EEPROM_HW_ADDRESS      0x57   /* E0 = E1 = E2 = 0 */
+#define I2C_EE             I2C1//interface number
+
+
+void setup();
+void loop();
+void lcd_out();
+uint32_t InitRCC( void);
+uint8_t rr =0 ,ii=0, temp=0; 
+ 
+TIM_TimeBaseInitTypeDef timer2;
+
+volatile  signed int TempMain;
+volatile  int f_1s =0 ;
+volatile  int f_2s =0 ;
+
+
+
+volatile Datchiki_All Dat;                      // Показания датчиков
+volatile Ustavki Des;                           // Уставки для Десциляции
+volatile Ustavki Ret;                           // Уставки для Ретивикации
+LcdWindows LW;                                  // Отображаеая информация на LCD
+
+uint32_t InitRCC( void) {
+  __IO uint32_t StartUpCounter = 0, HSEStatus = 0;
+ 
+  /* Конфигурацяи  SYSCLK, HCLK, PCLK2 и PCLK1 ---------------------------*/
+  /* Включаем HSE */
+  RCC->CR |= ((uint32_t)RCC_CR_HSEON);
+ 
+  /* Ждем пока HSE не выставит бит готовности либо не выйдет таймаут*/
+  do {
+    HSEStatus = RCC->CR & RCC_CR_HSERDY;
+    StartUpCounter++;
+  } while( (HSEStatus == 0) && (StartUpCounter != HSEStartUp_TimeOut));
+ 
+  if ( (RCC->CR & RCC_CR_HSERDY) != RESET) {
+    HSEStatus = (uint32_t)0x01;
+  }
+  else {
+    HSEStatus = (uint32_t)0x00;
+  }
+ 
+  /* Если HSE запустился нормально */
+  if ( HSEStatus == (uint32_t)0x01) {
+    /* Включаем буфер предвыборки FLASH */
+    FLASH->ACR |= FLASH_ACR_PRFTBE;
+ 
+    /* Конфигурируем Flash на 2 цикла ожидания */
+    /* Это нужно потому, что Flash не может работать на высокой частоте */
+//  FLASH->ACR &= (uint32_t)((uint32_t)~FLASH_ACR_LATENCY);
+//    FLASH->ACR |= (uint32_t)FLASH_ACR_LATENCY_2;
+ 
+ 
+    /* HCLK = SYSCLK */
+    RCC->CFGR |= (uint32_t)RCC_CFGR_HPRE_DIV1;
+ 
+    /* PCLK2 = HCLK */
+    RCC->CFGR |= (uint32_t)RCC_CFGR_PPRE2_DIV1;
+ 
+    /* PCLK1 = HCLK */
+    RCC->CFGR |= (uint32_t)RCC_CFGR_PPRE1_DIV2;
+ 
+    /* Конфигурируем множитель PLL configuration: PLLCLK = HSE * 9 = 72 MHz */
+    /* При условии, что кварц на 8МГц! */
+    /* RCC_CFGR_PLLMULL9 - множитель на 9. Если нужна другая частота, не 72МГц */
+    /* то выбираем другой множитель. */
+    RCC->CFGR &= (uint32_t)((uint32_t)~(RCC_CFGR_PLLSRC | RCC_CFGR_PLLXTPRE |
+                                        RCC_CFGR_PLLMULL));
+    RCC->CFGR |= (uint32_t)(RCC_CFGR_PLLSRC_HSE | RCC_CFGR_PLLMULL9);
+ 
+    /* Включаем PLL */
+    RCC->CR |= RCC_CR_PLLON;
+ 
+    /* Ожидаем, пока PLL выставит бит готовности */
+    while((RCC->CR & RCC_CR_PLLRDY) == 0) {
+    }
+ 
+    /* Выбираем PLL как источник системной частоты */
+    RCC->CFGR &= (uint32_t)((uint32_t)~(RCC_CFGR_SW));
+    RCC->CFGR |= (uint32_t)RCC_CFGR_SW_PLL;
+ 
+    /* Ожидаем, пока PLL выберется как источник системной частоты */
+    while ((RCC->CFGR & (uint32_t)RCC_CFGR_SWS) != (uint32_t)0x08) {
+    }
+  }
+  else {
+   /* Все плохо... HSE не завелся... Чего-то с кварцем или еще что...
+      Надо бы както обработать эту ошибку... Если мы здесь, то мы работаем
+      от HSI! */
+  }
+ 
+  return HSEStatus;
+}
+ 
+void I2C_init()
+{
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB | RCC_APB2Periph_AFIO, ENABLE);
+	GPIO_InitTypeDef GPIO_InitStructure;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_OD;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7;
+	GPIO_Init(GPIOB, &GPIO_InitStructure);
+	
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, ENABLE);
+	I2C_InitTypeDef I2C_InitStructure;
+	I2C_StructInit(&I2C_InitStructure);
+	I2C_InitStructure.I2C_ClockSpeed = 100000;
+	I2C_InitStructure.I2C_OwnAddress1 = 1;
+	I2C_InitStructure.I2C_Ack = I2C_Ack_Enable;
+	I2C_Init(I2C1, &I2C_InitStructure);
+	I2C_Cmd(I2C1, ENABLE);
+	I2C_AcknowledgeConfig(I2C1, ENABLE);
+}
+
+
+void initAll() // Настройка переферии
+{
+  GPIO_DeInit(GPIOA);
+    
+    // Включаем тактирование переферии  
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2,  ENABLE);
+    
+    GPIO_InitTypeDef port;
+    //Про эту функцию напишу чуть ниже
+    GPIO_StructInit(&port);
+    // Настройка светодиодика
+    port.GPIO_Mode = GPIO_Mode_Out_PP;
+    port.GPIO_Pin = GPIO_Pin_13;
+    port.GPIO_Speed = GPIO_Speed_50MHz;  
+    GPIO_Init(GPIOC, &port);    
+    
+    // Настройка порта для DS18D20 - термодатчик Основной
+    port.GPIO_Mode = GPIO_Mode_Out_OD;   
+    port.GPIO_Speed = GPIO_Speed_2MHz; 
+   
+    // термодатчик Основной порт А5 | Обратной Воды порт А6
+    port.GPIO_Pin = (GPIO_Pin_3|GPIO_Pin_4);
+    GPIO_Init(GPIOA, &port);
+    
+    port.GPIO_Mode = GPIO_Mode_Out_PP;
+    port.GPIO_Pin = GPIO_Pin_5;
+    GPIO_Init(GPIOA, &port);
+    
+    // А вот и долгожданная настройка таймера TIM2
+    TIM_TimeBaseStructInit(&timer2);
+    //timer2.TIM_Prescaler = 72000 - 1;
+    timer2.TIM_Prescaler =  (SystemCoreClock / 10000) - 1;
+    timer2.TIM_Period = 9999; // 1000;
+    timer2.TIM_ClockDivision = 0;
+    timer2.TIM_CounterMode = TIM_CounterMode_Up;
+        
+    TIM_TimeBaseInit(TIM2, &timer2);
+  
+    TIM_Cmd(TIM2, ENABLE);
+    TIM_ClearFlag(TIM2, TIM_FLAG_Update);
+    TIM_ITConfig(TIM2, TIM_IT_Update, ENABLE);
+    
+    //NVIC_SetPriority(TIM2_IRQn, 2);
+   // NVIC_EnableIRQ(TIM2_IRQn); // Перенес в маин
+    
+/*    
+if (!(DWT_CONTROL & 1))                                                         //  Запуск 32 разрядного счетчика для функции delay
+    {
+        SCB_DEMCR  |= 0x01000000;
+        DWT_CYCCNT  = 0; 
+        DWT_CONTROL|= 1; // enable the counter
+    }
+*/
+init_delay_DWT(); // Подготовили delay    
+    
+I2C_init(I2C1, 100000);
+
+}
+
+void TIM2_IRQHandler(void)
+{
+  TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
+  
+  if( f_1s==3) f_1s=1;
+  if( f_1s==4) f_1s=0;
+}
+
+void I2C_Configuration(void)
+{
+
+           I2C_InitTypeDef  I2C_InitStructure;
+           GPIO_InitTypeDef  GPIO_InitStructure;
+
+           RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1,ENABLE);
+
+           RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB| RCC_APB2Periph_AFIO , ENABLE);//
+
+           /* Configure I2C1 pins: PB6->SCL and PB7->SDA */
+           GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_6 | GPIO_Pin_7;
+           GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+           GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_OD;
+           GPIO_Init(GPIOB, &GPIO_InitStructure);
+
+           I2C_DeInit(I2C_EE);
+           I2C_InitStructure.I2C_Mode = I2C_Mode_I2C;
+           I2C_InitStructure.I2C_DutyCycle = I2C_DutyCycle_16_9;
+           I2C_InitStructure.I2C_OwnAddress1 = 1;
+           I2C_InitStructure.I2C_Ack = I2C_Ack_Enable;
+           I2C_InitStructure.I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit;
+           I2C_InitStructure.I2C_ClockSpeed = 100000;  /* 100kHz */
+
+           I2C_Cmd(I2C_EE, ENABLE);
+           I2C_Init(I2C_EE, &I2C_InitStructure);
+           I2C_AcknowledgeConfig(I2C_EE, ENABLE);
+
+}
+
+//***************************************************************
+//***************************************************************
+
+ int main()
+{
+  
+InitRCC();
+initAll();
+
+setup();
+
+NVIC_EnableIRQ(TIM2_IRQn);
+
+for (;;) {
+	 loop();
+     //   GPIO_ResetBits(GPIOC,GPIO_Pin_13);
+     //   DelayMC(2);
+     //   GPIO_SetBits(GPIOC,GPIO_Pin_13);
+     //   DelayMC(2);
+
+        
+	//GPIOA->ODR = 0;
+        
+//        GPIO_ResetBits(GPIOA,GPIO_Pin_3);
+//	_delay_ms(5);
+        //DelayMC(bit ? 15 : 600);
+       //	GPIOA->ODR = GPIO_Pin_3;
+//        GPIO_SetBits(GPIOA,GPIO_Pin_3);
+//	_delay_ms(5);
+        //DelayMC(bit ? 65 : 20);
+        
+	}
+        
+return 0;  
+  
+}
+
+void setup(){
+
+ // НАстройки LCD 
+ LCDI2C_init(0x27,20,4);
+ LCDI2C_backlight();
+ LCDI2C_clear();
+ //Delay(100);
+ ds18d20_init(GPIO_Pin_3);
+ ds18d20_init(GPIO_Pin_4);
+ LCDI2C_noBacklight();
+ //Delay(100);
+ LCDI2C_backlight();
+  
+ temp=sizeof(Des) ;
+ EEPROM_read_mem(EEPROM_HW_ADDRESS,0, *Des, sizeof(Des)) ;
+ 
+}
+
+void loop(){ // Основная программа
+ 
+   
+  switch (f_1s){
+  case 0:
+    if (send_presence(GPIO_Pin_3)==1){
+     ds18d20_start(GPIO_Pin_4);
+     ds18d20_start(GPIO_Pin_3);
+     
+     GPIO_ResetBits(GPIOC,GPIO_Pin_13);
+ 
+     //I2C_EE_ByteWrite(0x57, ii ,ii);                                            // Запись байта во внешнию памать
+    
+    }
+    f_1s=3;
+    break;
+  case 1:
+    
+   Dat.t_def = (float)ds18d20_read(GPIO_Pin_3)/16;
+   Dat.t_water = (float)ds18d20_read(GPIO_Pin_4)/16;
+   
+   rr =  I2C_EE_ByteRead(0x57,ii);                                           // чтение байта из внешней памяти
+   ii++;
+    GPIO_SetBits(GPIOC,GPIO_Pin_13);
+    lcd_out(); 
+ //   printf("");
+    f_1s=4;
+    break;
+  }
+  
+if (f_1s==1){
+  f_2s == 2 ? f_2s=0 : f_2s++  ;
+ 
+  }else{ 
+
+  }
+
+}
+
+
+
+void lcd_out(){
+  sprintf(LW.str0,"%s","MK STM32F103C8");
+  sprintf(LW.str1,"%i   ",rr);
+  sprintf(LW.str2,"Tempr: %.2f    ",Dat.t_def);
+  sprintf(LW.str3,"Water: %.2f    ",Dat.t_water);
+  //sprintf(LW.str3,"%s","####################");
+ 
+ LCDI2C_setCursor(0,0);
+ LCDI2C_write_String(LW.str0);
+ LCDI2C_setCursor(0,1); 
+ LCDI2C_write_String(LW.str1);
+ LCDI2C_setCursor(0,2); 
+ LCDI2C_write_String(LW.str2);
+ LCDI2C_setCursor(0,3); 
+ LCDI2C_write_String(LW.str3);
+ 
+//char bu[20];
+//sprintf(bu,"Tempr: %.2f",Dat.t_def);
+//LCDI2C_write_String(bu);
+
+}
