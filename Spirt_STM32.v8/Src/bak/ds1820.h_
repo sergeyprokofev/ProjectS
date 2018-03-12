@@ -1,0 +1,27 @@
+#ifndef	_DS18B20
+#define	_DS18B20
+uint8_t ds_reset_pulse(uint16_t PinMask);
+void ds_write_bit(uint8_t bit,uint16_t PinMask);
+uint16_t ds_read_bit(uint16_t PinMask);
+void ds_write_byte(uint8_t byte, uint16_t PinMask);
+uint8_t ds_read_byte(uint16_t PinMask);
+uint8_t ds_start_convert_single(uint8_t PinNumb);   		//пуск измерения температуры  
+uint8_t ds_read_data_single(uint8_t *buff, uint8_t PinNumb);    //чтение памяти датчика
+signed int ds_read_temperature(uint8_t PinNumb);
+
+///------------------------///----------------------------///
+void _delay_(uint32_t del);
+void send_presence(uint8_t PinNumb);
+void one_wire_write_bit(uint8_t bit,uint8_t PinNumb);
+uint8_t one_wire_read_bit(uint8_t PinNumb);
+void one_wire_write_byte(uint8_t data, uint8_t PinNumb);
+
+void ds18d20_init(uint8_t PinNumb);
+void ds18d29_start(uint8_t PinNumb);
+float ds18d20_read(uint8_t PinNumb);
+int ds1820_readtemp(void);
+
+
+
+#endif
+
