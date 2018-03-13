@@ -33,7 +33,9 @@ uint8_t rr =0 ,ii=0, temp=0;
 uint16_t  temp16=0; 
 volatile uint16_t  count_1s=0, flag_1s=0, tiktak=0; 
 
-uint8_t Brightnes=7;                                            // Яркость мерцания 
+#define BrightnesHI 6                                           // Яркость мерцания "Яркоя"
+#define BrightnesLOW 3                                          // Яркость мерцания "Тусклая"
+uint8_t Brightnes = BrightnesHI;                                // Яркость мерцания 
 
 TIM_TimeBaseInitTypeDef timer2, timer3, timer4;
 EXTI_InitTypeDef  EXTI_InitStructure;   
@@ -42,21 +44,22 @@ NVIC_InitTypeDef NVIC_InitStructure;
 volatile  signed int TempMain;
 volatile  int f_1s =0 ;
 volatile  int f_2s =0 ;
-
 volatile Datchiki_All Dat;                                      // Показания датчиков
 
 Ustavki Des;                                                    // Уставки для Десциляции
 Ustavki Ret;                                                    // Уставки для Ретивикации
 
-LcdWindows LW;                                                  // Отображаеая информация на LCD
+void _TikTak(void);
+//LcdWindows LW;                                                  // Отображаеая информация на LCD
 
 /* Настройка прерываний */
 void EXTI_INIT(void)    
 {
+int Prescaler=(SystemCoreClock / (SystemCoreClock/10000))-1;
 /*     А вот и долгожданная настройка таймера TIM2 на 1 секунду */
 TIM_TimeBaseStructInit(&timer2);
-timer2.TIM_Prescaler =  (SystemCoreClock / (SystemCoreClock/10000))-1;// - 1;           // 7200 10000
-timer2.TIM_Period = 1000; // 1000;                               // 9999
+timer2.TIM_Prescaler =  Prescaler;
+timer2.TIM_Period = 1000; 
 timer2.TIM_ClockDivision = 0;
 timer2.TIM_CounterMode = TIM_CounterMode_Up;
 TIM_TimeBaseInit(TIM2, &timer2);
@@ -65,8 +68,8 @@ TIM_ClearFlag(TIM2, TIM_FLAG_Update);
 TIM_ITConfig(TIM2, TIM_IT_Update, ENABLE);
 /*     А вот и долгожданная настройка таймера TIM3 на 4s секунду */
 TIM_TimeBaseStructInit(&timer3);
-timer3.TIM_Prescaler =  timer2.TIM_Prescaler;
-timer3.TIM_Period = 4000; // 1000;                               // 9999
+timer3.TIM_Prescaler =  Prescaler;
+timer3.TIM_Period = 4000; 
 timer3.TIM_ClockDivision = 0;
 timer3.TIM_CounterMode = TIM_CounterMode_Up;
 TIM_TimeBaseInit(TIM3, &timer3);
@@ -75,7 +78,7 @@ TIM_ClearFlag(TIM3, TIM_FLAG_Update);
 TIM_ITConfig(TIM3, TIM_IT_Update, ENABLE);
 /*     А вот и долгожданная настройка таймера TIM4 на 250ms секунду */
 TIM_TimeBaseStructInit(&timer4);
-timer4.TIM_Prescaler = timer2.TIM_Prescaler; // (SystemCoreClock / (SystemCoreClock/10000));// - 1;           // 7200 10000
+timer4.TIM_Prescaler = Prescaler; // (SystemCoreClock / (SystemCoreClock/10000));// - 1;           // 7200 10000
 timer4.TIM_Period = 250; // 1000;                               // 9999
 timer4.TIM_ClockDivision = 0;
 timer4.TIM_CounterMode = TIM_CounterMode_Up;
@@ -105,7 +108,7 @@ NVIC_SetPriority (EXTI2_IRQn, 1);                               // Понизе�
 NVIC_SetPriority (EXTI3_IRQn, 2);                               // Понизем прерывание детектора нуля
 NVIC_SetPriority (TIM2_IRQn,  3);                               // Понизем прерывание 1 секундного таймера
 NVIC_SetPriority (TIM3_IRQn,  4);                               // Понизем прерывание 4 секундного таймера
-NVIC_SetPriority (TIM2_IRQn,  4);                               // Понизем прерывание 250 ms таймера
+NVIC_SetPriority (TIM4_IRQn,  5);                               // Понизем прерывание 250 ms таймера
 /* Разшешим прерывания прерываний */
 NVIC_EnableIRQ(EXTI0_IRQn);                                     // разрешаем прерывание энкодера
 NVIC_EnableIRQ(EXTI1_IRQn);                                     // разрешаем прерывание энкодера
@@ -115,7 +118,6 @@ NVIC_EnableIRQ(TIM2_IRQn);                                      // Запуст�
 NVIC_EnableIRQ(TIM3_IRQn);                                      // Запустим таймер 3 4s таймера
 NVIC_EnableIRQ(TIM4_IRQn);                                      // Запустим таймер 4 250 ms таймера
 }
-
 
 void EXTI0_IRQHandler(void)
 {   
@@ -180,39 +182,31 @@ void TIM2_IRQHandler(void)
         {
             // Обязательно сбрасываем флаг
             TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
-            GPIOC->ODR ^= GPIO_Pin_13;
+            //GPIOC->ODR ^= GPIO_Pin_13;
+            _TikTak();
         }
-  
-  /*
-TIM_ClearITPendingBit(TIM2, TIM_IT_Update);  
-  tiktak=1;
-  if(f_1s==3) f_1s=1;
-  if(f_1s==4) f_1s=0;
-  if(count_1s++ >= 10)
-  {
-    count_1s=0;
-    flag_1s =1;    
-  }  
-*/
 }
 
-void TIM3_IRQHandler(void)
+void TIM3_IRQHandler(void)  // 4s
 {
         if (TIM_GetITStatus(TIM3, TIM_IT_Update) != RESET)
-        {
-            // Обязательно сбрасываем флаг
-            TIM_ClearITPendingBit(TIM3, TIM_IT_Update);
-            //GPIOC->ODR ^= GPIO_Pin_13;
+        {          
+          TIM_ClearITPendingBit(TIM3, TIM_IT_Update);           // Обязательно сбрасываем флаг
+          Dat.t_def = (float)ds18d20_read(DEF_PIN)/16;
+          Dat.t_water = (float)ds18d20_read(WAT_PIN)/16;          
+          ds18d20_start(DEF_PIN);
+          ds18d20_start(WAT_PIN);   
+          GPIOC->ODR ^= GPIO_Pin_13;
         }
 }
 
-void TIM4_IRQHandler(void)
+void TIM4_IRQHandler(void) // 250ms
 {
         if (TIM_GetITStatus(TIM4, TIM_IT_Update) != RESET)
         {
             // Обязательно сбрасываем флаг
             TIM_ClearITPendingBit(TIM4, TIM_IT_Update);
-           // GPIOC->ODR ^= GPIO_Pin_13;
+            DispOut();
         }
 }
 
@@ -277,49 +271,44 @@ void initAll() // Настройка переферии
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
     RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2,  ENABLE);
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3,  ENABLE);
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4,  ENABLE);    
     
-    GPIO_InitTypeDef port;
-    //Про эту функцию напишу чуть ниже
-    GPIO_StructInit(&port);
+    GPIO_InitTypeDef portA,portB,portC;
+    GPIO_StructInit(&portA);
+    GPIO_StructInit(&portB);
+    GPIO_StructInit(&portC);
     
     // настройка пинов для 7 сегментых дисплеев PORTA
-    port.GPIO_Pin = (GPIO_Pin_8|GPIO_Pin_9|GPIO_Pin_10|GPIO_Pin_11);
-    port.GPIO_Speed = GPIO_Speed_50MHz;
-    port.GPIO_Mode = GPIO_Mode_Out_PP;
-    GPIO_Init(GPIOA, &port);
-    
-    // Настройка светодиодика
-    port.GPIO_Mode = GPIO_Mode_Out_PP;
-    port.GPIO_Pin = GPIO_Pin_13;
-    port.GPIO_Speed = GPIO_Speed_50MHz;  
-    GPIO_Init(GPIOC, &port);    
+    portA.GPIO_Pin = (GPIO_Pin_8|GPIO_Pin_9|GPIO_Pin_10|GPIO_Pin_11);
+    portA.GPIO_Speed = GPIO_Speed_2MHz;
+    portA.GPIO_Mode = GPIO_Mode_Out_PP;
+    GPIO_Init(GPIOA, &portA);
     
     // Настройка порта для DS18D20 - термодатчик Основной
-    port.GPIO_Mode = GPIO_Mode_Out_OD;   
-    port.GPIO_Speed = GPIO_Speed_2MHz; 
+    portA.GPIO_Mode = GPIO_Mode_Out_OD;   
+    //portA.GPIO_Speed = GPIO_Speed_2MHz; 
+    portA.GPIO_Pin = (DEF_PIN|WAT_PIN);
+    GPIO_Init(GPIOA, &portA);     
    
-    // термодатчик Основной порт А6 | Обратной Воды порт А7
-    port.GPIO_Pin = (DEF_PIN|WAT_PIN);
-    GPIO_Init(GPIOA, &port);    
-    
-    // настройка пинов для 7 сегментых дисплеев PORTB
-    port.GPIO_Pin = (GPIO_Pin_12|GPIO_Pin_13|GPIO_Pin_14|GPIO_Pin_15);
-    port.GPIO_Speed = GPIO_Speed_50MHz;
-    port.GPIO_Mode = GPIO_Mode_Out_PP;
-    GPIO_Init(GPIOB, &port);
+     // настройка пинов для 7 сегментых дисплеев PORTB
+    portB.GPIO_Pin = (GPIO_Pin_12|GPIO_Pin_13|GPIO_Pin_14|GPIO_Pin_15);
+    portB.GPIO_Speed = GPIO_Speed_2MHz;
+    portB.GPIO_Mode = GPIO_Mode_Out_PP;
+    GPIO_Init(GPIOB, &portB);
     
     // настройка пинов для eeprom     
-    port.GPIO_Pin = (GPIO_Pin_10 | GPIO_Pin_11);
-    port.GPIO_Speed = GPIO_Speed_50MHz;
-    port.GPIO_Mode = GPIO_Mode_AF_OD;    
-    GPIO_Init(GPIOB, &port);
+    portC.GPIO_Pin = (GPIO_Pin_10 | GPIO_Pin_11);
+    portC.GPIO_Speed = GPIO_Speed_2MHz;
+    portC.GPIO_Mode = GPIO_Mode_AF_OD;    
+    GPIO_Init(GPIOB, &portC);    
     
+    // Настройка светодиодика
+    portC.GPIO_Mode = GPIO_Mode_Out_PP;
+    portC.GPIO_Pin = GPIO_Pin_13;
+    portC.GPIO_Speed = GPIO_Speed_2MHz;  
+    GPIO_Init(GPIOC, &portC);    
     
-    //port.GPIO_Mode = GPIO_Mode_Out_PP;
-    //port.GPIO_Pin = GPIO_Pin_5;
-    //GPIO_Init(GPIOA, &port);
-    
-    RCC_APB2PeriphClockCmd( RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOC , ENABLE);
     EXTI_INIT();                                                // Настроим и запустим прерывание 
     I2C_init_EE();                                              // Настроим шину чтения EEPROM         
 }
@@ -332,7 +321,8 @@ int main()
   setup();
   for (;;) {
     IWDG_ReloadCounter();
-    loop();}
+    //loop();
+  }
 }
 
 void EE_load(uint16_t _addr, uint8_t * src ){
@@ -352,16 +342,10 @@ void EE_save(uint16_t _addr, uint8_t * src )
 }
 
 void setup()
-{                                                               // НАстройки LCD 
- // LCDI2C_init(0x27,20,4);
- // LCDI2C_backlight();
- // LCDI2C_clear();
- 
+{                                                              
   ds18d20_init(DEF_PIN);
   ds18d20_init(WAT_PIN);
- // LCDI2C_noBacklight(); 
- // LCDI2C_backlight();
- 
+  
   TM1637SetBrightness(GPIOB, DEF_CLK, DEF_DIO, Brightnes);
   TM1637SetBrightness(GPIOA, PWR_CLK, PWR_DIO, Brightnes);
  
@@ -398,18 +382,17 @@ void led_flash()
     }  
 }
 
-void _TikTak()
+void _TikTak(void)
 {  
-  if (Brightnes==2) 
+  if (Brightnes==BrightnesLOW) 
     {
-      Brightnes=7;
+      Brightnes=BrightnesHI;
     }
     else
     {
-      Brightnes=2;
+      Brightnes=BrightnesLOW;
     }
-  TM1637SetBrightness(GPIOB, DEF_CLK, DEF_DIO, Brightnes);
-  tiktak=0;
+  TM1637SetBrightness(GPIOB, DEF_CLK, DEF_DIO, Brightnes);  
 }
 
 void loop()
@@ -435,10 +418,10 @@ void loop()
     }
     f_1s=3;
     break;
-  case 1:    
+  case 1:     
     Dat.t_def = (float)ds18d20_read(DEF_PIN)/16;
     Dat.t_water = (float)ds18d20_read(WAT_PIN)/16;
-    led_flash(); // моргнем светодиодиком
+    //led_flash(); // моргнем светодиодиком
     DispOut();  
     
       
@@ -473,8 +456,8 @@ void DispOut(){
  //LCDI2C_setCursor(0,3); 
  //LCDI2C_write_String(LW.str3);
  
- 
+  TM1637DisplayDecimal (GPIOA, PWR_CLK, PWR_DIO, (int)(Des.pwr),0);
  TM1637DisplayDecimal (GPIOB, DEF_CLK, DEF_DIO, (int)(Dat.t_water*100),1);
- TM1637DisplayDecimal (GPIOA, PWR_CLK, PWR_DIO, (int)(Des.pwr),0);
+
  
 }

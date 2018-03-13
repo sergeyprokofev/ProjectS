@@ -41,6 +41,9 @@
 *.su
 *.idb
 *.pdb
+*.pbi.xcl
+*.pbi
+
 
 # Kernel Module Compile Results
 *.mod*
@@ -50,3 +53,4 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+Debug/
