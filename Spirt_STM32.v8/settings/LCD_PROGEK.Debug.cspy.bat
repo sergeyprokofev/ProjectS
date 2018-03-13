@@ -25,7 +25,7 @@ if not "%~1" == "" goto debugFile
 
 @echo on 
 
-"C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.0\common\bin\cspybat" -f "C:\Users\ser\Documents\STM32\LCD\settings\LCD_PROGEK.Debug.general.xcl" --backend -f "C:\Users\ser\Documents\STM32\LCD\settings\LCD_PROGEK.Debug.driver.xcl" 
+"C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.0\common\bin\cspybat" -f "C:\Users\ser\Cloud@Mail.Ru\ProjectS\Spirt_STM32.v8\settings\LCD_PROGEK.Debug.general.xcl" --backend -f "C:\Users\ser\Cloud@Mail.Ru\ProjectS\Spirt_STM32.v8\settings\LCD_PROGEK.Debug.driver.xcl" 
 
 @echo off 
 goto end 
@@ -34,7 +34,7 @@ goto end
 
 @echo on 
 
-"C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.0\common\bin\cspybat" -f "C:\Users\ser\Documents\STM32\LCD\settings\LCD_PROGEK.Debug.general.xcl" "--debug_file=%~1" --backend -f "C:\Users\ser\Documents\STM32\LCD\settings\LCD_PROGEK.Debug.driver.xcl" 
+"C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.0\common\bin\cspybat" -f "C:\Users\ser\Cloud@Mail.Ru\ProjectS\Spirt_STM32.v8\settings\LCD_PROGEK.Debug.general.xcl" "--debug_file=%~1" --backend -f "C:\Users\ser\Cloud@Mail.Ru\ProjectS\Spirt_STM32.v8\settings\LCD_PROGEK.Debug.driver.xcl" 
 
 @echo off 
 :end

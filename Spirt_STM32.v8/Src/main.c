@@ -4,6 +4,7 @@
 #include "stm32f10x_i2c.h"
 #include "stm32f10x_tim.h"
 #include "stm32f10x_exti.h"
+#include "stm32f10x_iwdg.h"
 #include "misc.h"                                          
 #include "Delay.h"
 #include "main.h" 
@@ -34,7 +35,7 @@ volatile uint16_t  count_1s=0, flag_1s=0, tiktak=0;
 
 uint8_t Brightnes=7;                                            // Яркость мерцания 
 
-TIM_TimeBaseInitTypeDef timer2;
+TIM_TimeBaseInitTypeDef timer2, timer3, timer4;
 EXTI_InitTypeDef  EXTI_InitStructure;   
 NVIC_InitTypeDef NVIC_InitStructure;
 
@@ -54,14 +55,35 @@ void EXTI_INIT(void)
 {
 /*     А вот и долгожданная настройка таймера TIM2 на 1 секунду */
 TIM_TimeBaseStructInit(&timer2);
-timer2.TIM_Prescaler =  (SystemCoreClock / 7200);// - 1;           // 10000
-timer2.TIM_Period = 2500; // 1000;                               // 9999
+timer2.TIM_Prescaler =  (SystemCoreClock / (SystemCoreClock/10000))-1;// - 1;           // 7200 10000
+timer2.TIM_Period = 1000; // 1000;                               // 9999
 timer2.TIM_ClockDivision = 0;
 timer2.TIM_CounterMode = TIM_CounterMode_Up;
 TIM_TimeBaseInit(TIM2, &timer2);
 TIM_Cmd(TIM2, ENABLE);
 TIM_ClearFlag(TIM2, TIM_FLAG_Update);
 TIM_ITConfig(TIM2, TIM_IT_Update, ENABLE);
+/*     А вот и долгожданная настройка таймера TIM3 на 4s секунду */
+TIM_TimeBaseStructInit(&timer3);
+timer3.TIM_Prescaler =  timer2.TIM_Prescaler;
+timer3.TIM_Period = 4000; // 1000;                               // 9999
+timer3.TIM_ClockDivision = 0;
+timer3.TIM_CounterMode = TIM_CounterMode_Up;
+TIM_TimeBaseInit(TIM3, &timer3);
+TIM_Cmd(TIM3, ENABLE);
+TIM_ClearFlag(TIM3, TIM_FLAG_Update);
+TIM_ITConfig(TIM3, TIM_IT_Update, ENABLE);
+/*     А вот и долгожданная настройка таймера TIM4 на 250ms секунду */
+TIM_TimeBaseStructInit(&timer4);
+timer4.TIM_Prescaler = timer2.TIM_Prescaler; // (SystemCoreClock / (SystemCoreClock/10000));// - 1;           // 7200 10000
+timer4.TIM_Period = 250; // 1000;                               // 9999
+timer4.TIM_ClockDivision = 0;
+timer4.TIM_CounterMode = TIM_CounterMode_Up;
+TIM_TimeBaseInit(TIM4, &timer4);
+TIM_Cmd(TIM4, ENABLE);
+TIM_ClearFlag(TIM4, TIM_FLAG_Update);
+TIM_ITConfig(TIM4, TIM_IT_Update, ENABLE);
+
 /*     Настроим прерывание для обноружения нуля 220в  */
 GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource3);     // говорим что вывод PA0 используется как внешний вывод прерывания
 EXTI_InitStructure.EXTI_Line = EXTI_Line3;                      // используем линию 0 (она для портов PA0 - PG0)
@@ -81,13 +103,17 @@ NVIC_SetPriority (EXTI0_IRQn, 1);                               // Понизе�
 NVIC_SetPriority (EXTI1_IRQn, 1);                               // Понизем прерывание энкодера
 NVIC_SetPriority (EXTI2_IRQn, 1);                               // Понизем прерывание кнопки энкодера
 NVIC_SetPriority (EXTI3_IRQn, 2);                               // Понизем прерывание детектора нуля
-NVIC_SetPriority (TIM2_IRQn,  4);                               // Понизем прерывание секундного таймера
+NVIC_SetPriority (TIM2_IRQn,  3);                               // Понизем прерывание 1 секундного таймера
+NVIC_SetPriority (TIM3_IRQn,  4);                               // Понизем прерывание 4 секундного таймера
+NVIC_SetPriority (TIM2_IRQn,  4);                               // Понизем прерывание 250 ms таймера
 /* Разшешим прерывания прерываний */
 NVIC_EnableIRQ(EXTI0_IRQn);                                     // разрешаем прерывание энкодера
 NVIC_EnableIRQ(EXTI1_IRQn);                                     // разрешаем прерывание энкодера
 NVIC_EnableIRQ(EXTI2_IRQn);                                     // разрешаем прерывание кнопки энкодера
 NVIC_EnableIRQ(EXTI3_IRQn);                                     // разрешаем прерывание детектора нуля
-NVIC_EnableIRQ(TIM2_IRQn);                                      // Запустим таймер 
+NVIC_EnableIRQ(TIM2_IRQn);                                      // Запустим таймер 2 1s
+NVIC_EnableIRQ(TIM3_IRQn);                                      // Запустим таймер 3 4s таймера
+NVIC_EnableIRQ(TIM4_IRQn);                                      // Запустим таймер 4 250 ms таймера
 }
 
 
@@ -148,6 +174,48 @@ void encoderHandler()
     }    
 }
 
+void TIM2_IRQHandler(void)
+{
+  if (TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET)
+        {
+            // Обязательно сбрасываем флаг
+            TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
+            GPIOC->ODR ^= GPIO_Pin_13;
+        }
+  
+  /*
+TIM_ClearITPendingBit(TIM2, TIM_IT_Update);  
+  tiktak=1;
+  if(f_1s==3) f_1s=1;
+  if(f_1s==4) f_1s=0;
+  if(count_1s++ >= 10)
+  {
+    count_1s=0;
+    flag_1s =1;    
+  }  
+*/
+}
+
+void TIM3_IRQHandler(void)
+{
+        if (TIM_GetITStatus(TIM3, TIM_IT_Update) != RESET)
+        {
+            // Обязательно сбрасываем флаг
+            TIM_ClearITPendingBit(TIM3, TIM_IT_Update);
+            //GPIOC->ODR ^= GPIO_Pin_13;
+        }
+}
+
+void TIM4_IRQHandler(void)
+{
+        if (TIM_GetITStatus(TIM4, TIM_IT_Update) != RESET)
+        {
+            // Обязательно сбрасываем флаг
+            TIM_ClearITPendingBit(TIM4, TIM_IT_Update);
+           // GPIOC->ODR ^= GPIO_Pin_13;
+        }
+}
+
 uint32_t InitRCC( void) {
   __IO uint32_t StartUpCounter = 0, HSEStatus = 0;
   RCC->CR |= ((uint32_t)RCC_CR_HSEON);
@@ -185,6 +253,21 @@ uint32_t InitRCC( void) {
   return HSEStatus;
 }
 
+void iwdg_init(void) {
+	// включаем LSI
+	RCC_LSICmd(ENABLE);
+	while (RCC_GetFlagStatus(RCC_FLAG_LSIRDY) == RESET);
+	// разрешается доступ к регистрам IWDG
+	IWDG_WriteAccessCmd(IWDG_WriteAccess_Enable);
+	// устанавливаем предделитель
+	IWDG_SetPrescaler(IWDG_Prescaler_256);
+	// значение для перезагрузки
+	IWDG_SetReload(0xEA);
+	// перезагрузим значение
+	IWDG_ReloadCounter();
+	// LSI должен быть включен
+	IWDG_Enable();
+}
 
 void initAll() // Настройка переферии
 {
@@ -241,26 +324,15 @@ void initAll() // Настройка переферии
     I2C_init_EE();                                              // Настроим шину чтения EEPROM         
 }
 
-
-void TIM2_IRQHandler(void)
-{
-  TIM_ClearITPendingBit(TIM2, TIM_IT_Update);  
-  tiktak=1;
-  if(f_1s==3) f_1s=1;
-  if(f_1s==4) f_1s=0;
-  if(count_1s++ >= 10)
-  {
-    count_1s=0;
-    flag_1s =1;    
-  }  
-}
-
 int main()
 {
-  InitRCC();
+  InitRCC();                                                    
+  //iwdg_init();// WatchDog
   initAll();
   setup();
-  for (;;) {loop();}
+  for (;;) {
+    IWDG_ReloadCounter();
+    loop();}
 }
 
 void EE_load(uint16_t _addr, uint8_t * src ){
@@ -318,11 +390,11 @@ void led_flash()
 {
   if(bresenham_getNext(&bs))
     {
-      GPIO_SetBits(GPIOC, GPIO_Pin_13);
+ //     GPIO_SetBits(GPIOC, GPIO_Pin_13);
     }
   else
     {
-      GPIO_ResetBits(GPIOC, GPIO_Pin_13);
+  //    GPIO_ResetBits(GPIOC, GPIO_Pin_13);
     }  
 }
 

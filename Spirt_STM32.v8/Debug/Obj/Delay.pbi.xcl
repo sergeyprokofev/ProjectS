@@ -1,27 +1,27 @@
-"C:\Users\ser\Documents\STM32\LCD\Src\Delay.c"
+"C:\Users\ser\Cloud@Mail.Ru\ProjectS\Spirt_STM32.v8\Src\Delay.c"
 -std=c11
 -ferror-limit=0
 -fbracket-depth=512
 -I
-C:\Users\ser\Cloud@Mail.Ru\STM32\LCD\stm_lib\inc
+C:\Users\ser\Documents\STM32\Spirt_STM32.v8\stm_lib\inc
 -I
-C:\Users\ser\Cloud@Mail.Ru\STM32\LCD\src
+C:\Users\ser\Documents\STM32\Spirt_STM32.v8\src
 -I
-C:\Users\ser\Cloud@Mail.Ru\STM32\LCD\DeviceSupport
+C:\Users\ser\Documents\STM32\Spirt_STM32.v8\DeviceSupport
 -I
-C:\Users\ser\Cloud@Mail.Ru\STM32\LCD\cmsis
+C:\Users\ser\Documents\STM32\Spirt_STM32.v8\cmsis
 -I
 C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.0\arm\inc
 -I
 C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.0\arm\inc\c
 -I
-C:\Users\ser\Cloud@Mail.Ru\STM32\LCD\stm_lib\inc
+C:\Users\ser\Documents\STM32\Spirt_STM32.v8\stm_lib\inc
 -I
-C:\Users\ser\Cloud@Mail.Ru\STM32\LCD\src
+C:\Users\ser\Documents\STM32\Spirt_STM32.v8\src
 -I
-C:\Users\ser\Cloud@Mail.Ru\STM32\LCD\DeviceSupport
+C:\Users\ser\Documents\STM32\Spirt_STM32.v8\DeviceSupport
 -I
-C:\Users\ser\Cloud@Mail.Ru\STM32\LCD\cmsis
+C:\Users\ser\Documents\STM32\Spirt_STM32.v8\cmsis
 -D__CHAR_BITS__=8
 -D__CHAR_MAX__=127
 -D__CHAR_MIN__=(-__CHAR_MAX__-1)
