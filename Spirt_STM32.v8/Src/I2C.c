@@ -96,8 +96,6 @@ void I2C_WriteData(I2C_TypeDef* I2Cx, uint8_t data)
     while(!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_TRANSMITTED));
 }
 
-
-
 /*******************************************************************/
 uint8_t I2C_ReadData(I2C_TypeDef* I2Cx)
 {
@@ -107,9 +105,6 @@ uint8_t I2C_ReadData(I2C_TypeDef* I2Cx)
     data = I2C_ReceiveData(I2Cx);
     return data;
 }
-
-
-
 
 void I2C_EE_ByteWrite(uint16_t WriteAddr, uint8_t val)
 {

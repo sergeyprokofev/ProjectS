@@ -69,7 +69,7 @@ TIM_ITConfig(TIM2, TIM_IT_Update, ENABLE);
 /*     А вот и долгожданная настройка таймера TIM3 на 4s секунду */
 TIM_TimeBaseStructInit(&timer3);
 timer3.TIM_Prescaler =  Prescaler;
-timer3.TIM_Period = 4000; 
+timer3.TIM_Period = 2000; 
 timer3.TIM_ClockDivision = 0;
 timer3.TIM_CounterMode = TIM_CounterMode_Up;
 TIM_TimeBaseInit(TIM3, &timer3);
@@ -114,9 +114,9 @@ NVIC_EnableIRQ(EXTI0_IRQn);                                     // разреш�
 NVIC_EnableIRQ(EXTI1_IRQn);                                     // разрешаем прерывание энкодера
 NVIC_EnableIRQ(EXTI2_IRQn);                                     // разрешаем прерывание кнопки энкодера
 NVIC_EnableIRQ(EXTI3_IRQn);                                     // разрешаем прерывание детектора нуля
-NVIC_EnableIRQ(TIM2_IRQn);                                      // Запустим таймер 2 1s
-NVIC_EnableIRQ(TIM3_IRQn);                                      // Запустим таймер 3 4s таймера
-NVIC_EnableIRQ(TIM4_IRQn);                                      // Запустим таймер 4 250 ms таймера
+//NVIC_EnableIRQ(TIM2_IRQn);                                      // Запустим таймер 2 1s
+//NVIC_EnableIRQ(TIM3_IRQn);                                      // Запустим таймер 3 4s таймера
+//NVIC_EnableIRQ(TIM4_IRQn);                                      // Запустим таймер 4 250 ms таймера
 }
 
 void EXTI0_IRQHandler(void)
@@ -247,7 +247,7 @@ uint32_t InitRCC( void) {
   return HSEStatus;
 }
 
-void iwdg_init(void) {
+void init_iwdg(void) {
 	// включаем LSI
 	RCC_LSICmd(ENABLE);
 	while (RCC_GetFlagStatus(RCC_FLAG_LSIRDY) == RESET);
@@ -256,7 +256,7 @@ void iwdg_init(void) {
 	// устанавливаем предделитель
 	IWDG_SetPrescaler(IWDG_Prescaler_256);
 	// значение для перезагрузки
-	IWDG_SetReload(0xEA);
+	IWDG_SetReload(0xA00);
 	// перезагрузим значение
 	IWDG_ReloadCounter();
 	// LSI должен быть включен
@@ -298,10 +298,10 @@ void initAll() // Настройка переферии
     GPIO_Init(GPIOB, &portB);
     
     // настройка пинов для eeprom     
-    portC.GPIO_Pin = (GPIO_Pin_10 | GPIO_Pin_11);
-    portC.GPIO_Speed = GPIO_Speed_2MHz;
-    portC.GPIO_Mode = GPIO_Mode_AF_OD;    
-    GPIO_Init(GPIOB, &portC);    
+    portB.GPIO_Pin = (GPIO_Pin_10 | GPIO_Pin_11);
+    portB.GPIO_Speed = GPIO_Speed_2MHz;
+    portB.GPIO_Mode = GPIO_Mode_AF_OD;    
+    GPIO_Init(GPIOB, &portB);    
     
     // Настройка светодиодика
     portC.GPIO_Mode = GPIO_Mode_Out_PP;
@@ -316,7 +316,7 @@ void initAll() // Настройка переферии
 int main()
 {
   InitRCC();                                                    
-  //iwdg_init();// WatchDog
+  //init_iwdg();// WatchDog
   initAll();
   setup();
   for (;;) {
@@ -456,7 +456,7 @@ void DispOut(){
  //LCDI2C_setCursor(0,3); 
  //LCDI2C_write_String(LW.str3);
  
-  TM1637DisplayDecimal (GPIOA, PWR_CLK, PWR_DIO, (int)(Des.pwr),0);
+ TM1637DisplayDecimal (GPIOA, PWR_CLK, PWR_DIO, (int)(Des.pwr),0);
  TM1637DisplayDecimal (GPIOB, DEF_CLK, DEF_DIO, (int)(Dat.t_water*100),1);
 
  
